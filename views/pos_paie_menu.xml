@@ -1,0 +1,20 @@
+<odoo>
+    <!-- Actions -->
+    <record id="action_pos_paie_vendeur" model="ir.actions.act_window">
+        <field name="name">Paie des vendeurs</field>
+        <field name="res_model">pos.paie.vendeur</field>
+        <field name="view_mode">tree,form</field>
+        <field name="groups_id" eval="[(4, ref('pos_paie.group_pos_paie_user')), (4, ref('pos_paie.group_pos_paie_manager'))]"/>
+    </record>
+
+    <!-- Menu root (top-level, no group restriction) -->
+    <menuitem id="menu_pos_paie_root" name="POS Paie" sequence="30"/>
+
+    <!-- Menu entries -->
+    <menuitem id="menu_pos_paie_vendeur" name="Paie des vendeurs" parent="menu_pos_paie_root" action="action_pos_paie_vendeur"
+              groups="pos_paie.group_pos_paie_user,pos_paie.group_pos_paie_manager"/>
+
+    <menuitem id="menu_pos_paie_wizard" name="Calculer paie (Wizard)" parent="menu_pos_paie_root"
+              action="pos_paie.action_pos_paie_wizard_blank"
+              groups="pos_paie.group_pos_paie_user,pos_paie.group_pos_paie_manager"/>
+</odoo>

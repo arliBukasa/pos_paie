@@ -1,0 +1,117 @@
+<odoo>
+    <!-- Wizard form view -->
+    <record id="view_pos_paie_wizard_form" model="ir.ui.view">
+        <field name="name">pos.paie.wizard.form</field>
+        <field name="model">pos.paie.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Calcul de la paie">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="vendeur_id"/>
+                            <field name="date_debut"/>
+                            <field name="date_fin"/>
+                            <field name="pourcentage" widget="percentage"/>
+                        </group>
+                        <group string="Résultat">
+                            <field name="total_commandes" readonly="1"/>
+                            <field name="montant_net" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Fermer" class="btn-secondary" special="cancel"/>
+                    <button name="action_prepare_sortie_caisse" type="object" string="Préparer sortie de caisse" class="oe_highlight"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action to open the payroll wizard from a vendor -->
+    <record id="action_pos_paie_wizard" model="ir.actions.act_window">
+        <field name="name">Calculer paie</field>
+        <field name="res_model">pos.paie.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{"default_vendeur_id": active_id}</field>
+    </record>
+
+    <!-- Action without context for menu usage (no active_id reference) -->
+    <record id="action_pos_paie_wizard_blank" model="ir.actions.act_window">
+        <field name="name">Calculer paie</field>
+        <field name="res_model">pos.paie.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Add button to pos.caisse.vendeur form via inheritance (inside sheet to avoid header dependency) -->
+    <record id="view_pos_caisse_vendeur_form_inherit_paie" model="ir.ui.view">
+        <field name="name">pos.caisse.vendeur.form.inherit.paie</field>
+        <field name="model">pos.caisse.vendeur</field>
+        <field name="inherit_id" ref="pos_caisse.view_pos_caisse_vendeur_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet" position="inside">
+                <group string="Paie">
+                    <button name="%(action_pos_paie_wizard)d" type="action" string="Calculer Paie" class="oe_highlight" groups="pos_paie.group_pos_paie_user"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Paie Vendeur - Tree View (uses inherited fields from pos.caisse.vendeur via _inherits) -->
+    <record id="view_pos_paie_vendeur_tree" model="ir.ui.view">
+        <field name="name">pos.paie.vendeur.tree</field>
+        <field name="model">pos.paie.vendeur</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="carte_numero"/>
+                <field name="total_commandes"/>
+                <field name="montant_paye"/>
+                <field name="pourcentage"/>
+                <field name="date_paiement"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Paie Vendeur - Form View -->
+    <record id="view_pos_paie_vendeur_form" model="ir.ui.view">
+        <field name="name">pos.paie.vendeur.form</field>
+        <field name="model">pos.paie.vendeur</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_open_wizard" type="object" string="Assistant de Paie" class="oe_highlight"/>
+                    <button name="action_prepare_sortie_caisse" type="object" string="Préparer sortie de caisse"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="vendor_id"/>
+                            <field name="name" readonly="1"/>
+                            <field name="carte_numero" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="total_commandes" readonly="1"/>
+                            <field name="montant_paye"/>
+                            <field name="pourcentage"/>
+                            <field name="date_paiement"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Commandes">
+                            <field name="commande_ids">
+                                <tree editable="bottom">
+                                    <field name="vendeur_card" invisible="1"/>
+                                    <field name="commande_id"/>
+                                    <field name="montant"/>
+                                    <field name="date"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>
