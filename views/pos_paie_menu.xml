@@ -7,8 +7,8 @@
         <field name="groups_id" eval="[(4, ref('pos_paie.group_pos_paie_user')), (4, ref('pos_paie.group_pos_paie_manager'))]"/>
     </record>
 
-    <!-- Menu root (top-level, no group restriction) -->
-    <menuitem id="menu_pos_paie_root" name="POS Paie" sequence="30"/>
+    <!-- Menu root under Caisse -->
+    <menuitem id="menu_pos_paie_root" name="Paie" parent="pos_caisse.menu_pos_caisse_root" sequence="90" groups="pos_paie.group_pos_paie_user,pos_paie.group_pos_paie_manager"/>
 
     <!-- Menu entries -->
     <menuitem id="menu_pos_paie_vendeur" name="Paie des vendeurs" parent="menu_pos_paie_root" action="action_pos_paie_vendeur"

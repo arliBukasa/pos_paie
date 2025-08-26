@@ -199,3 +199,112 @@ class PosPaieWizard(models.TransientModel):
             'target': 'new',
             'context': ctx,
         }
+
+
+class PosPaiePeriode(models.Model):
+    _name = 'pos.paie.periode'
+    _description = 'Période de paie (agrégée par vendeur)'
+    _order = 'date_debut desc, id desc'
+
+    name = fields.Char('Nom', required=True, default=lambda self: self._default_name())
+    date_debut = fields.Date('Du', required=True, default=lambda self: fields.Date.context_today(self).replace(day=1))
+    date_fin = fields.Date('Au', required=True, default=lambda self: fields.Date.context_today(self) + relativedelta(day=31))
+    ligne_ids = fields.One2many('pos.paie.periode.ligne', 'periode_id', string='Lignes (vendeurs)')
+
+    total_commandes = fields.Float('Total commandes', compute='_compute_totaux', store=False)
+    total_cash = fields.Float('Total cash', compute='_compute_totaux', store=False)
+    total_bp = fields.Float('Total BP', compute='_compute_totaux', store=False)
+    commission_total = fields.Float('Commission totale', compute='_compute_totaux', store=False)
+    montant_net_total = fields.Float('Montant net total', compute='_compute_totaux', store=False)
+
+    def _default_name(self):
+        today = fields.Date.context_today(self)
+        start = today.replace(day=1)
+        end = today + relativedelta(day=31)
+        return f"Paie {start} → {end}"
+
+    @api.depends('ligne_ids.total_commandes', 'ligne_ids.total_bp', 'ligne_ids.commission', 'ligne_ids.montant_net')
+    def _compute_totaux(self):
+        for rec in self:
+            rec.total_commandes = sum(rec.ligne_ids.mapped('total_commandes'))
+            rec.total_bp = sum(rec.ligne_ids.mapped('total_bp'))
+            rec.total_cash = rec.total_commandes - rec.total_bp
+            rec.commission_total = sum(rec.ligne_ids.mapped('commission'))
+            rec.montant_net_total = sum(rec.ligne_ids.mapped('montant_net'))
+
+    def action_recompute(self):
+        for rec in self:
+            rec._recompute_lines()
+        return True
+
+    def _recompute_lines(self):
+        self.ensure_one()
+        # Clear existing lines
+        self.ligne_ids = [(5, 0, 0)]
+        Cmd = self.env['pos.caisse.commande'].sudo()
+        V = self.env['pos.caisse.vendeur'].sudo()
+        # Build date range
+        start_dt = datetime.combine(self.date_debut, datetime.min.time()) if self.date_debut else None
+        end_dt = datetime.combine(self.date_fin, datetime.max.time()) if self.date_fin else None
+        domain = [('state', '!=', 'annule')]
+        if start_dt:
+            domain.append(('date', '>=', fields.Datetime.to_string(start_dt)))
+        if end_dt:
+            domain.append(('date', '<=', fields.Datetime.to_string(end_dt)))
+        commandes = Cmd.search(domain)
+        if not commandes:
+            return
+        # Group by client_card
+        cards = set(c.client_card for c in commandes if getattr(c, 'client_card', False))
+        vendeurs = V.search([('carte_numero', 'in', list(cards))]) if cards else V.browse([])
+        vend_by_card = {v.carte_numero: v for v in vendeurs}
+        # Aggregate per card
+        by_card = {}
+        for c in commandes:
+            card = getattr(c, 'client_card', False)
+            if not card:
+                continue
+            agg = by_card.setdefault(card, {'nb': 0, 'total': 0.0, 'total_bp': 0.0})
+            agg['nb'] += 1
+            agg['total'] += c.total
+            if getattr(c, 'type_paiement', False) == 'bp':
+                agg['total_bp'] += c.total
+        # Create lines
+        lines_vals = []
+        for card, vals in by_card.items():
+            v = vend_by_card.get(card)
+            if not v:
+                continue
+            pourc = getattr(v, 'pourcentage_commission', 0.25) or 0.25
+            commission = vals['total'] * pourc
+            montant_net = commission - vals['total_bp']
+            lines_vals.append((0, 0, {
+                'vendeur_id': v.id,
+                'nb_commandes': vals['nb'],
+                'total_commandes': vals['total'],
+                'total_bp': vals['total_bp'],
+                'pourcentage': pourc,
+                'commission': commission,
+                'montant_net': montant_net,
+            }))
+        if lines_vals:
+            self.ligne_ids = lines_vals
+
+
+class PosPaiePeriodeLigne(models.Model):
+    _name = 'pos.paie.periode.ligne'
+    _description = 'Ligne de paie par vendeur (période)'
+    _order = 'total_commandes desc'
+
+    periode_id = fields.Many2one('pos.paie.periode', string='Période', required=True, ondelete='cascade', index=True)
+    vendeur_id = fields.Many2one('pos.caisse.vendeur', string='Vendeur', required=True, index=True)
+    nb_commandes = fields.Integer('Nb commandes', default=0)
+    total_commandes = fields.Float('Total commandes', default=0.0)
+    total_bp = fields.Float('Total BP', default=0.0)
+    pourcentage = fields.Float('Pourcentage', default=0.25)
+    commission = fields.Float('Commission', default=0.0)
+    montant_net = fields.Float('Montant net', default=0.0)
+
+    _sql_constraints = [
+        ('periode_vendeur_unique', 'unique(periode_id, vendeur_id)', 'Ce vendeur est déjà présent dans cette période.'),
+    ]
