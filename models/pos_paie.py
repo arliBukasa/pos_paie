@@ -1,6 +1,7 @@
 from odoo import models, fields, api
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import logging
 
 class PaieVendeur(models.Model):
     _name = 'pos.paie.vendeur'
@@ -275,8 +276,9 @@ class PosPaiePeriode(models.Model):
             v = vend_by_card.get(card)
             if not v:
                 continue
-            pourc = getattr(v, 'pourcentage_commission', 0.25) or 0.25
+            pourc = (getattr(v, 'pourcentage_commission', 25) or 25) / 100.0
             commission = vals['total'] * pourc
+            logging.info(f"Calculating commission for vendeur {v.id}: {commission}")
             montant_net = commission - vals['total_bp']
             lines_vals.append((0, 0, {
                 'vendeur_id': v.id,
