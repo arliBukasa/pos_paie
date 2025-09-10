@@ -299,7 +299,13 @@ class PosPaiePeriodeLigne(models.Model):
     _order = 'total_commandes desc'
 
     periode_id = fields.Many2one('pos.paie.periode', string='Période', required=True, ondelete='cascade', index=True)
-    vendeur_id = fields.Many2one('pos.caisse.vendeur', string='Vendeur', required=True, index=True)
+    vendeur_id = fields.Many2one(
+        'pos.caisse.vendeur',
+        string='Vendeur',
+        required=True,
+        index=True,
+        ondelete='cascade',  # If a vendor is deleted, remove the aggregated payroll line to avoid FK blocks
+    )
     nb_commandes = fields.Integer('Nb commandes', default=0)
     total_commandes = fields.Float('Total commandes', default=0.0)
     total_bp = fields.Float('Total BP', default=0.0)

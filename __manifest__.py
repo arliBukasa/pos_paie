@@ -1,6 +1,6 @@
 {
     'name': 'POS Paie Vendeur',
-    'version': '15.0.2.0.0',
+    'version': '15.0.2.1.0',
     'summary': 'Paie vendeurs basée sur les commandes BP existantes (sans modèles persistants)',
     'author': 'Votre Nom',
     'category': 'Point of Sale',
