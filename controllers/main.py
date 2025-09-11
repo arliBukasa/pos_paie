@@ -25,6 +25,8 @@ class PosPaieApi(http.Controller):
 
         Vendor = request.env['pos.caisse.vendeur'].sudo()
         vendors = Vendor.search([], limit=limit)
+        import logging
+        logging.info("=================== Vendeurs trouvés: %s", len(vendors))
         result = []
 
         start_dt = end_dt = None
