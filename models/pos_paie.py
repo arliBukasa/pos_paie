@@ -82,7 +82,7 @@ class PaieVendeur(models.Model):
                 line.montant for line in rec.commande_ids
                 if getattr(line.commande_id, 'type_paiement', False) == 'bp'
             )
-            rec.montant_paye = (rec.total_commandes * (rec.pourcentage or 0.0)) - total_bp
+            rec.montant_paye = (rec.total_commandes * (rec.pourcentage/100 or 0.0)) - total_bp
 
     def action_prepare_sortie_caisse(self):
         self.ensure_one()
@@ -237,6 +237,10 @@ class PosPaiePeriode(models.Model):
         for rec in self:
             rec._recompute_lines()
         return True
+    def _recompute(self):
+        for rec in self:
+            rec._recompute_lines()
+        return True
 
     def _recompute_lines(self):
         self.ensure_one()
@@ -277,6 +281,7 @@ class PosPaiePeriode(models.Model):
             if not v:
                 continue
             pourc = (getattr(v, 'pourcentage_commission', 25) or 25) / 100.0
+            logging.info(f"================= Vendeur {v.id} ({v.display_name}) - Nb commandes: {vals['nb']}, Total: {vals['total']}, Total BP: {vals['total_bp']}, Pourcentage: {pourc}%")
             commission = vals['total'] * pourc
             logging.info(f"Calculating commission for vendeur {v.id}: {commission}")
             montant_net = commission - vals['total_bp']
@@ -291,6 +296,13 @@ class PosPaiePeriode(models.Model):
             }))
         if lines_vals:
             self.ligne_ids = lines_vals
+
+    # surcharge de la methode create pour forcer le recalcul des lignes
+    @api.model
+    def create(self, vals):
+        rec = super().create(vals)
+        rec._recompute()
+        return rec
 
 
 class PosPaiePeriodeLigne(models.Model):
