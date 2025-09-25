@@ -13,6 +13,7 @@
                 <field name="total_bp"/>
                 <field name="commission_total"/>
                 <field name="montant_net_total"/>
+                <field name="state" widget="tag"/>
             </tree>
         </field>
     </record>
@@ -24,6 +25,8 @@
             <form string="Période de paie">
                 <header>
                     <button name="action_recompute" type="object" string="Recalculer" class="oe_highlight"/>
+                    <button name="action_confirmer_paies_periode" type="object" string="Confirmer toutes les paies" class="btn-success" confirm="Êtes-vous sûr de vouloir confirmer toutes les paies de cette période ? Les commandes associées seront marquées comme payées."/>
+                    <field name="state" widget="statusbar" statusbar_visible="confirm,done,cancel" class="oe_inline"/>
                 </header>
                 <sheet>
                     <group>
@@ -74,6 +77,9 @@
         <field name="model">pos.paie.wizard</field>
         <field name="arch" type="xml">
             <form string="Calcul de la paie">
+                <header>
+                    <field name="paiement_state" widget="statusbar" statusbar_visible="draft,ready,done" class="oe_inline"/>
+                </header>
                 <sheet>
                     <group>
                         <group>
@@ -152,6 +158,8 @@
                 <header>
                     <button name="action_open_wizard" type="object" string="Assistant de Paie" class="oe_highlight"/>
                     <button name="action_prepare_sortie_caisse" type="object" string="Préparer sortie de caisse"/>
+                    <button name="action_confirmer_paie" type="object" string="Confirmer Paie" class="btn-success" confirm="Êtes-vous sûr de vouloir confirmer cette paie ? Les commandes associées seront marquées comme payées." />
+                    <field name="state" widget="statusbar" statusbar_visible="non_payee,payee" class="oe_inline"/>
                 </header>
                 <sheet>
                     <group>

@@ -23,6 +23,11 @@ class PaieVendeur(models.Model):
     pourcentage = fields.Float('Pourcentage retenu', default=25.0)
     date_paiement = fields.Date('Date de paiement')
     commande_ids = fields.One2many('pos.paie.commande', 'paie_id', string='Commandes')
+    state = fields.Selection([
+        ('draft', 'Brouillon'),
+        ('done', 'Terminé'),
+        ('cancel', 'Annulé')
+    ], default='draft', string='État', compute='_compute_state', store=True)
 
     # Auto fill commandes when selecting vendor or changing dates
     @api.onchange('vendor_id')
@@ -42,6 +47,20 @@ class PaieVendeur(models.Model):
             self.pourcentage = self.vendor_id.pourcentage_commission
         self._populate_commandes_for_period()
         self.calculer_paie()
+    # changer l'etat de la paie si toutes les commandes sont payées
+    @api.depends('commande_ids.commande_id.paiement_state')
+    def _compute_state(self):
+        for rec in self:
+            if not rec.commande_ids:
+                rec.state = 'draft'
+                continue
+            all_paid = all(line.commande_id and line.commande_id.paiement_state == 'payee' for line in rec.commande_ids)
+            if all_paid:
+                rec.state = 'done'
+            else:
+                rec.state = 'draft'
+
+
 
     @api.onchange('date_debut', 'date_fin')
     def _onchange_dates(self):
@@ -55,7 +74,11 @@ class PaieVendeur(models.Model):
     def _populate_commandes_for_period(self):
         self.ensure_one()
         Cmd = self.env['pos.caisse.commande']
-        domain = [('client_card', '=', self.carte_numero), ('state', '!=', 'annule')]
+        domain = [
+            ('client_card', '=', self.carte_numero), 
+            ('state', '!=', 'annule'),
+            ('paiement_state', '=', 'non_payee')  # Ne prendre que les commandes non payées
+        ]
         if self.date_debut:
             start_dt = datetime.combine(self.date_debut, datetime.min.time())
             domain.append(('date', '>=', fields.Datetime.to_string(start_dt)))
@@ -84,6 +107,26 @@ class PaieVendeur(models.Model):
             )
             rec.montant_paye = (rec.total_commandes * (rec.pourcentage/100 or 0.0)) - total_bp
 
+    def action_confirmer_paie(self):
+        """Confirmer la paie et marquer les commandes comme payées"""
+        self.ensure_one()
+        self.calculer_paie()
+        
+        # Trouver toutes les commandes de cette paie et les marquer comme payées
+        commandes_payees = []
+        for ligne in self.commande_ids:
+            if ligne.commande_id and ligne.commande_id.paiement_state == 'non_payee':
+                ligne.commande_id.paiement_state = 'payee'
+                commandes_payees.append(ligne.commande_id.name)
+        
+        if commandes_payees:
+            logging.info("Paie confirmée pour %s: %s commandes marquées comme payées: %s", self.display_name, len(commandes_payees), commandes_payees)
+        
+        # Marquer la date de paiement
+        self.date_paiement = fields.Date.context_today(self)
+        
+        return True
+
     def action_prepare_sortie_caisse(self):
         self.ensure_one()
         self.calculer_paie()
@@ -94,6 +137,7 @@ class PaieVendeur(models.Model):
             'default_type': 'sortie',
             'default_montant': self.montant_paye,
             'default_motif': motif,
+            'default_paie_vendeur_id': self.id,  # Passer l'ID de la paie pour la confirmer après création du mouvement
         }
         return {
             'type': 'ir.actions.act_window',
@@ -151,6 +195,10 @@ class PosPaieWizard(models.TransientModel):
 
     total_commandes = fields.Float('Total commandes', readonly=True)
     montant_net = fields.Float('Montant à payer', readonly=True)
+    paiement_state = fields.Selection([
+        ('non_payee', 'Non payée'),
+        ('payee', 'Payée')
+    ], default='non_payee', string='État du paiement')  
 
     @api.onchange('vendeur_id')
     def _onchange_vendeur_id(self):
@@ -172,6 +220,7 @@ class PosPaieWizard(models.TransientModel):
         domain = [
             ('client_card', '=', self.vendeur_id.carte_numero),
             ('state', '!=', 'annule'),
+            ('paiement_state', '=', 'non_payee'),  # Ne prendre que les commandes non payées
             ('date', '>=', fields.Datetime.to_string(start_dt)),
             ('date', '<=', fields.Datetime.to_string(end_dt)),
         ]
@@ -180,6 +229,35 @@ class PosPaieWizard(models.TransientModel):
         total_bp = sum(c.total for c in commandes if getattr(c, 'type_paiement', False) == 'bp') if commandes else 0.0
         self.total_commandes = total_all
         self.montant_net = (total_all * (self.pourcentage or 0.0)) - total_bp
+
+    def action_confirmer_paie(self):
+        """Confirmer la paie du wizard et marquer les commandes comme payées"""
+        self.ensure_one()
+        if not (self.vendeur_id and self.date_debut and self.date_fin):
+            return False
+            
+        # Trouver les commandes de la période et les marquer comme payées
+        start_dt = datetime.combine(self.date_debut, datetime.min.time())
+        end_dt = datetime.combine(self.date_fin, datetime.max.time())
+        domain = [
+            ('client_card', '=', self.vendeur_id.carte_numero),
+            ('state', '!=', 'annule'),
+            ('paiement_state', '=', 'non_payee'),
+            ('date', '>=', fields.Datetime.to_string(start_dt)),
+            ('date', '<=', fields.Datetime.to_string(end_dt)),
+        ]
+        commandes = self.env['pos.caisse.commande'].search(domain)
+        commandes_payees = []
+        for cmd in commandes:
+            cmd.paiement_state = 'payee'
+            commandes_payees.append(cmd.name)
+        
+            
+        if commandes_payees:
+            self.paiement_state = 'payee'
+            logging.info("Paie wizard confirmée pour %s: %s commandes marquées comme payées: %s", self.vendeur_id.display_name, len(commandes_payees), commandes_payees)
+        
+        return True
 
     def action_prepare_sortie_caisse(self):
         self.ensure_one()
@@ -191,6 +269,7 @@ class PosPaieWizard(models.TransientModel):
             'default_type': 'sortie',
             'default_montant': self.montant_net,
             'default_motif': motif,
+            'default_paie_wizard_id': self.id,  # Passer l'ID du wizard pour confirmer après création du mouvement
         }
         return {
             'type': 'ir.actions.act_window',
@@ -217,6 +296,11 @@ class PosPaiePeriode(models.Model):
     total_bp = fields.Float('Total BP', compute='_compute_totaux', store=False)
     commission_total = fields.Float('Commission totale', compute='_compute_totaux', store=False)
     montant_net_total = fields.Float('Montant net total', compute='_compute_totaux', store=False)
+    state = fields.Selection([
+        ('confirm', 'Confirmé'),
+        ('done', 'Terminé'),
+        ('cancel', 'Annulé')
+    ], default='confirm', string='État')
 
     def _default_name(self):
         today = fields.Date.context_today(self)
@@ -237,6 +321,46 @@ class PosPaiePeriode(models.Model):
         for rec in self:
             rec._recompute_lines()
         return True
+    
+    def action_confirmer_paies_periode(self):
+        """Confirmer toutes les paies de la période et marquer les commandes comme payées"""
+        self.ensure_one()
+        if not self.ligne_ids:
+            return False
+            
+        # Pour chaque ligne (vendeur), marquer ses commandes comme payées
+        start_dt = datetime.combine(self.date_debut, datetime.min.time()) if self.date_debut else None
+        end_dt = datetime.combine(self.date_fin, datetime.max.time()) if self.date_fin else None
+        
+        total_commandes_payees = 0
+        for ligne in self.ligne_ids:
+            if not ligne.vendeur_id:
+                continue
+                
+            domain = [
+                ('client_card', '=', ligne.vendeur_id.carte_numero),
+                ('state', '!=', 'annule'),
+                ('paiement_state', '=', 'non_payee'),
+            ]
+            if start_dt:
+                domain.append(('date', '>=', fields.Datetime.to_string(start_dt)))
+            if end_dt:
+                domain.append(('date', '<=', fields.Datetime.to_string(end_dt)))
+                
+            commandes = self.env['pos.caisse.commande'].search(domain)
+            commandes_payees = []
+            for cmd in commandes:
+                cmd.paiement_state = 'payee'
+                commandes_payees.append(cmd.name)
+                
+            if commandes_payees:
+                logging.info("Période %s - Vendeur %s: %s commandes marquées comme payées", self.name, ligne.vendeur_id.display_name, len(commandes_payees))
+                total_commandes_payees += len(commandes_payees)
+        
+        if total_commandes_payees > 0:
+            logging.info("Paies période confirmées pour %s: %s commandes au total marquées comme payées", self.name, total_commandes_payees)
+        self.state = 'done'
+        return True
     def _recompute(self):
         for rec in self:
             rec._recompute_lines()
@@ -251,7 +375,10 @@ class PosPaiePeriode(models.Model):
         # Build date range
         start_dt = datetime.combine(self.date_debut, datetime.min.time()) if self.date_debut else None
         end_dt = datetime.combine(self.date_fin, datetime.max.time()) if self.date_fin else None
-        domain = [('state', '!=', 'annule')]
+        domain = [
+            ('state', '!=', 'annule'),
+            ('paiement_state', '=', 'non_payee')  # Ne prendre que les commandes non payées
+        ]
         if start_dt:
             domain.append(('date', '>=', fields.Datetime.to_string(start_dt)))
         if end_dt:

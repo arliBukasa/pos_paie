@@ -38,7 +38,12 @@ class PosPaieApi(http.Controller):
         Cmd = request.env['pos.caisse.commande'].sudo()
         for v in vendors:
             # Always compute BP-only aggregates for compatibility
-            domain_bp = [('client_card', '=', v.carte_numero), ('type_paiement', '=', 'bp'), ('state', '!=', 'annule')]
+            domain_bp = [
+                ('client_card', '=', v.carte_numero), 
+                ('type_paiement', '=', 'bp'), 
+                ('state', '!=', 'annule'),
+                ('paiement_state', '=', 'non_payee')  # Ne prendre que les commandes non payées
+            ]
             if start_dt:
                 domain_bp.append(('date', '>=', fields.Datetime.to_string(start_dt)))
             if end_dt:
@@ -53,7 +58,11 @@ class PosPaieApi(http.Controller):
                 'nb_commandes': len(cmds_bp),
             }
             if with_totaux:
-                domain_all = [('client_card', '=', v.carte_numero), ('state', '!=', 'annule')]
+                domain_all = [
+                    ('client_card', '=', v.carte_numero), 
+                    ('state', '!=', 'annule'),
+                    ('paiement_state', '=', 'non_payee')  # Ne prendre que les commandes non payées
+                ]
                 if start_dt:
                     domain_all.append(('date', '>=', fields.Datetime.to_string(start_dt)))
                 if end_dt:
@@ -103,6 +112,7 @@ class PosPaieApi(http.Controller):
         domain_all = [
             ('client_card', '=', vendeur_card),
             ('state', '!=', 'annule'),
+            ('paiement_state', '=', 'non_payee'),  # Ne prendre que les commandes non payées
             ('date', '>=', fields.Datetime.to_string(start_dt)),
             ('date', '<=', fields.Datetime.to_string(end_dt)),
         ]
@@ -259,3 +269,52 @@ class PosPaieApi(http.Controller):
             'paies': [{'id': paie.vendeur_id.id, 'name': paie.vendeur_id.name, 'carte_numero': paie.vendeur_id.carte_numero, 'nb_commandes': paie.nb_commandes, 'total_commandes': paie.total_commandes, 'total_bp': paie.total_bp, 'commission': paie.commission, 'montant_net': paie.montant_net} for paie in p.ligne_ids] if p.ligne_ids else [],
         } for p in periodes]
         return {'status': 'success', 'periodes': data, 'total': total, 'offset': offset, 'limit': limit}
+
+    @http.route('/api/pos_paie/payer_commandes', type='json', auth='user', methods=['POST'], csrf=False)
+    def payer_commandes(self, **payload):
+        """Marquer les commandes spécifiées comme payées (paiement_state = 'payee')"""
+        try:
+            params = http.request.jsonrequest or payload or {}
+            if isinstance(params, dict) and 'params' in params and isinstance(params.get('params'), dict):
+                params = params['params']
+            
+            commande_ids = params.get('commande_ids', [])
+            if not commande_ids or not isinstance(commande_ids, list):
+                return {'status': 'error', 'message': 'commande_ids requis (liste d\'IDs)'}
+            
+            # Vérifier les permissions
+            user = request.env.user
+            if not (user.has_group('pos_paie.group_pos_paie_manager') or user.has_group('pos_paie.group_pos_paie_user')):
+                return {'status': 'error', 'message': "Accès refusé"}
+            
+            Cmd = request.env['pos.caisse.commande'].sudo()
+            
+            # Rechercher les commandes et vérifier qu'elles existent
+            commandes = Cmd.browse(commande_ids).exists()
+            if not commandes:
+                return {'status': 'error', 'message': 'Aucune commande trouvée avec ces IDs'}
+            
+            # Filtrer uniquement les commandes non payées
+            commandes_non_payees = commandes.filtered(lambda c: c.paiement_state == 'non_payee')
+            if not commandes_non_payees:
+                return {'status': 'warning', 'message': 'Toutes les commandes sont déjà payées', 'nb_updated': 0}
+            
+            # Marquer comme payées
+            commandes_non_payees.write({'paiement_state': 'payee'})
+            
+            import logging
+            logging.info("API payer_commandes: %s commandes marquées comme payées: %s", 
+                        len(commandes_non_payees), 
+                        commandes_non_payees.mapped('name'))
+            
+            return {
+                'status': 'success',
+                'message': f'{len(commandes_non_payees)} commandes marquées comme payées',
+                'nb_updated': len(commandes_non_payees),
+                'commandes_payees': [{'id': c.id, 'name': c.name} for c in commandes_non_payees]
+            }
+            
+        except Exception as e:
+            import logging
+            logging.exception("Erreur dans payer_commandes")
+            return {'status': 'error', 'message': str(e)}
