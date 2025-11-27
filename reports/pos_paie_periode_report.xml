@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <template id="report_pos_paie_periode_view" name="Rapport Période de Paie">
+    <report
+        id="report_pos_paie_periode"
+        model="pos.paie.periode"
+        string="Rapport Période de Paie"
+        report_type="qweb-pdf"
+        name="pos_paie.report_pos_paie_periode_template"
+        file="pos_paie.report_pos_paie_periode_template"
+        print_report_name="'Rapport_Paie_' + object.name"
+    />
+    <template id="report_pos_paie_periode_template" name="Rapport Période de Paie">
            <t t-call="web.html_container">
             <t t-foreach="docs" t-as="periode">
                 <h2>Rapport de la période de paie : <span t-esc="periode.name"/></h2>
@@ -47,17 +56,8 @@
         </template>
 
         <!-- Action report PDF -->
-    <record id="report_pos_paie_periode_view" model="ir.actions.report">
-        <field name="name">Pos Paie Periode</field>
-        <field name="model">pos.paie.periode</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">pos_paie.report_pos_paie_periode_view</field>
-        <field name="report_file">pos_paie.report_pos_paie_periode_view</field>
-        <field name="print_report_name">'Rapport_Paie_%s' % object.name</field>
-        <field name="binding_model_id" ref="model_pos_paie_periode"/>
-        <field name="binding_type">report</field>
-    </record>
-    
+   
+
 
 
 </odoo>
