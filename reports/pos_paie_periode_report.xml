@@ -45,7 +45,7 @@
                                 <td><span t-esc="ligne.total_commandes"/></td>
                                 <td><span t-esc="ligne.total_bp"/></td>
                                 <td><span t-esc="ligne.commission"/></td>
-                                <td><span t-esc="ligne.total_commandes - ligne.commission"/></td>
+                                <td><span t-esc="5"/></td>
                                 <td><span t-esc="ligne.montant_net"/></td>
                             </tr>
                         </t>
