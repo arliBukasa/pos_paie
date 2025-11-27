@@ -56,6 +56,8 @@
         <field name="print_report_name">'Rapport_Paie_%s' % object.name</field>
         <field name="binding_model_id" ref="model_pos_paie_periode"/>
         <field name="binding_type">report</field>
+    </record>
+    
 
 
 </odoo>
