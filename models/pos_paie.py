@@ -411,7 +411,7 @@ class PosPaiePeriode(models.Model):
             logging.info(f"================= Vendeur {v.id} ({v.display_name}) - Nb commandes: {vals['nb']}, Total: {vals['total']}, Total BP: {vals['total_bp']}, Pourcentage: {pourc}%")
             commission = vals['total'] * pourc
             logging.info(f"Calculating commission for vendeur {v.id}: {commission}")
-            montant_net = commission - vals['total_bp']
+            montant_net = commission - vals['total_bp']-500
             lines_vals.append((0, 0, {
                 'vendeur_id': v.id,
                 'nb_commandes': vals['nb'],
