@@ -23,30 +23,30 @@
                     <li>Total à payer : <span t-esc="periode.montant_net_total"/></li>
                 </ul>
                 <h3>Détail par Vendeur</h3>
-                <table class="table table-condensed table-bordered">
-                    <thead>
+                <table class="table table-condensed table-bordered" style="border: 1px solid #000; width: 100%;">
+                    <thead style="background-color: #f0f0f0; font-weight: bold;">
                         <tr>
-                            <th>Numéro Carte</th>
-                            <th>Vendeur</th>
-                            <th>Nb Commandes</th>
-                            <th>Total Commandes</th>
-                            <th>Total BP</th>
-                            <th>Commission</th>
-                            <th>Coût Carte</th>
-                            <th>Montant Net à Payer</th>
+                            <th style="border: 1px solid #000;">Numéro Carte</th>
+                            <th style="border: 1px solid #000;">Vendeur</th>
+                            <th style="border: 1px solid #000;">Nb Commandes</th>
+                            <th style="border: 1px solid #000;">Total Commandes</th>
+                            <th style="border: 1px solid #000;">Total BP</th>
+                            <th style="border: 1px solid #000;">Commission</th>
+                            <th style="border: 1px solid #000;">Coût Carte</th>
+                            <th style="border: 1px solid #000;">Montant Net à Payer</th>
                         </tr>
                     </thead>
                     <tbody>
                         <t t-foreach="sorted(periode.ligne_ids, key=lambda l: l.vendeur_card or '')" t-as="ligne">
                             <tr>
-                                <td><span t-esc="ligne.vendeur_card"/></td>
-                                <td><span t-esc="ligne.vendeur_id.display_name"/></td>
-                                <td><span t-esc="ligne.nb_commandes"/></td>
-                                <td><span t-esc="ligne.total_commandes"/></td>
-                                <td><span t-esc="ligne.total_bp"/></td>
-                                <td><span t-esc="ligne.commission"/></td>
-                                <td><span t-esc="500"/>FC</td>
-                                <td><span t-esc="ligne.montant_net"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_card"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_id.display_name"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.nb_commandes"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.total_commandes"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.total_bp"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.commission"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.total_commandes - ligne.commission"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.montant_net"/></td>
                             </tr>
                         </t>
                     </tbody>
