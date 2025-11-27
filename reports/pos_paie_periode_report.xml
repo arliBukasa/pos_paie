@@ -44,17 +44,18 @@
                 </table>
             </t>
         </t>
-    </template>
-    <record id="report_pos_paie_periode" model="ir.actions.report">
-        <field name="name">Pos Paie Periode</field>
-        <field name="model">pos.paie.periode</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">addon.report_pos_paie_periode_view</field>
-        <field name="report_file">addon.report_pos_paie_periode</field>
-        <field name="print_report_name">'%s' % object.name</field>
-        <field name="binding_model_id" ref="model_pos_paie_periode"/>
-        <field name="binding_type">report</field>
-    </record>
+        </template>
+
+        <!-- Action report PDF -->
+        <record id="report_pos_paie_periode" model="ir.actions.report">
+            <field name="name">Rapport Période de Paie</field>
+            <field name="model">pos.paie.periode</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">pos_paie.report_pos_paie_periode_view</field>
+            <field name="print_report_name">(object.name or '')</field>
+            <field name="binding_model_id" ref="model_pos_paie_periode"/>
+            <field name="binding_type">report</field>
+        </record>
 
 
 </odoo>
