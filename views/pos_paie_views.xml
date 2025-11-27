@@ -47,6 +47,7 @@
                         <page string="Vendeurs">
                             <field name="ligne_ids">
                                 <tree editable="bottom">
+                                    <field name="vendeur_card"/>
                                     <field name="vendeur_id"/>
                                     <field name="nb_commandes"/>
                                     <field name="total_commandes"/>

@@ -445,6 +445,7 @@ class PosPaiePeriodeLigne(models.Model):
         index=True,
         ondelete='cascade',  # If a vendor is deleted, remove the aggregated payroll line to avoid FK blocks
     )
+    vendeur_card = fields.Char(related='vendeur_id.carte_numero', store=False)
     nb_commandes = fields.Integer('Nb commandes', default=0)
     total_commandes = fields.Float('Total commandes', default=0.0)
     total_bp = fields.Float('Total BP', default=0.0)
