@@ -5,11 +5,13 @@
     'author': 'Votre Nom',
     'category': 'Point of Sale',
     'depends': ['base', 'pos_caisse'],
-    'data': [
-        'security/pos_paie_security.xml',
-        'security/ir.model.access.csv',
-        'views/pos_paie_views.xml',
-        'views/pos_paie_menu.xml',
+    "data": [
+        "security/ir.model.access.csv",
+        "security/pos_paie_security.xml",
+        "views/pos_paie_menu.xml",
+        "views/pos_paie_views.xml",
+        "reports/pos_paie_periode_ligne_report.xml",
+        "reports/pos_paie_periode_report.xml"
     ],
     'installable': True,
     'application': True,

@@ -1,0 +1,91 @@
+<odoo>
+    <template id="report_pos_paie_periode" name="Rapport Période de Paie">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="periode">
+                <h2>Rapport de la période de paie : <span t-esc="periode.name"/></h2>
+                <h3>Statistiques Globales</h3>
+                <ul>
+                    <li>Nombre de vendeurs : <span t-esc="len(periode.ligne_ids)"/></li>
+                    <li>Total commandes : <span t-esc="periode.total_commandes"/></li>
+                    <li>Total BP : <span t-esc="periode.total_bp"/></li>
+                    <li>Total commissions : <span t-esc="periode.commission_total"/></li>
+                    <li>Coût total des cartes : <span t-esc="periode.total_commandes - periode.commission_total"/></li>
+                    <li>Total à payer : <span t-esc="periode.montant_net_total"/></li>
+                </ul>
+                <h3>Détail par Vendeur</h3>
+                <table class="table table-condensed table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Numéro Carte</th>
+                            <th>Vendeur</th>
+                            <th>Nb Commandes</th>
+                            <th>Total Commandes</th>
+                            <th>Total BP</th>
+                            <th>Commission</th>
+                            <th>Coût Carte</th>
+                            <th>Montant Net à Payer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="sorted(periode.ligne_ids, key=lambda l: l.vendeur_card or '')" t-as="ligne">
+                            <tr>
+                                <td><span t-esc="ligne.vendeur_card"/></td>
+                                <td><span t-esc="ligne.vendeur_id.display_name"/></td>
+                                <td><span t-esc="ligne.nb_commandes"/></td>
+                                <td><span t-esc="ligne.total_commandes"/></td>
+                                <td><span t-esc="ligne.total_bp"/></td>
+                                <td><span t-esc="ligne.commission"/></td>
+                                <td><span t-esc="ligne.total_commandes - ligne.commission"/></td>
+                                <td><span t-esc="ligne.montant_net"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </t>
+        </t>
+    </template>
+</odoo>
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="report_pos_paie_periode" model="ir.actions.report">
+        <field name="name">Pos Paie Periode</field>
+        <field name="model">pos.paie.periode</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">addon.report_pos_paie_periode_view</field>
+        <field name="report_file">addon.report_pos_paie_periode</field>
+        <field name="print_report_name">'%s' % object.name</field>
+        <field name="binding_model_id" ref="model_pos_paie_periode"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_pos_paie_periode_view">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Title</h2>
+                        <table class="table table-condensed">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="doc.field_ids" t-as="field">
+                                    <td>
+                                        <span t-esc="field.name"/>
+                                    </td>
+                                    <td>
+                                        <span t-esc="field.description"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>
