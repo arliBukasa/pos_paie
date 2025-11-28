@@ -12,28 +12,51 @@
     <template id="report_pos_paie_periode_template" name="Rapport Période de Paie">
            <t t-call="web.html_container">
             <t t-foreach="docs" t-as="periode">
-                <h2>Rapport de la période de paie : <span t-esc="periode.name"/></h2>
+                <h2>Rapport de la periode de paie : <span t-esc="periode.name"/></h2>
                 <h3>Statistiques Globales</h3>
-                <ul>
-                    <li>Nombre de vendeurs : <span t-esc="len(periode.ligne_ids)"/></li>
-                    <li>Total commandes : <span t-esc="periode.total_commandes"/></li>
-                    <li>Total BP : <span t-esc="periode.total_bp"/></li>
-                    <li>Total commissions : <span t-esc="periode.commission_total"/></li>
-                    <li>Coût total des cartes : <span t-esc="periode.total_commandes - periode.commission_total"/></li>
-                    <li>Total à payer : <span t-esc="periode.montant_net_total"/></li>
-                </ul>
-                <h3>Détail par Vendeur</h3>
+                <table class="table table-bordered">
+                    <tr>
+                        <td><strong>Date de debut :</strong></td>
+                        <td><span t-esc="periode.date_debut"/></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Date de fin :</strong></td>
+                        <td><span t-esc="periode.date_fin"/></td>
+                    </tr>
+                </table>
+                <table class="table table-bordered">
+                    <tr>
+                        <td><strong>Nombre de vendeurs :</strong></td>
+                        <td><span t-esc="len(periode.ligne_ids)"/></td>
+                        <td><strong>Total commandes :</strong></td>
+                        <td><span t-esc="periode.total_commandes"/></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total BP :</strong></td>
+                        <td><span t-esc="periode.total_bp"/></td>
+                        <td><strong>Total commissions :</strong></td>
+                        <td><span t-esc="periode.commission_total"/></td>
+                        
+                    </tr>
+                    <tr>
+                        <td><strong>Cout total des cartes :</strong></td>
+                        <td><span t-esc="periode.total_commandes - periode.commission_total"/></td>
+                        <td><strong>Total a payer :</strong></td>
+                        <td><span t-esc="periode.montant_net_total"/></td>
+                    </tr>
+                </table>
+                <h3>Detail par Vendeur</h3>
                 <table class="table table-condensed table-bordered" style="border: 1px solid #000; width: 100%;">
                     <thead style="background-color: #f0f0f0; font-weight: bold;">
                         <tr>
-                            <th style="border: 1px solid #000;">Numéro Carte</th>
+                            <th style="border: 1px solid #000;">Numero Carte</th>
                             <th style="border: 1px solid #000;">Vendeur</th>
                             <th style="border: 1px solid #000;">Nb Commandes</th>
                             <th style="border: 1px solid #000;">Total Commandes</th>
                             <th style="border: 1px solid #000;">Total BP</th>
                             <th style="border: 1px solid #000;">Commission</th>
-                            <th style="border: 1px solid #000;">Coût Carte</th>
-                            <th style="border: 1px solid #000;">Montant Net à Payer</th>
+                            <th style="border: 1px solid #000;">Cout Carte</th>
+                            <th style="border: 1px solid #000;">Net a Payer</th>
                         </tr>
                     </thead>
                     <tbody>
