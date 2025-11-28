@@ -411,9 +411,12 @@ class PosPaiePeriode(models.Model):
             logging.info(f"================= Vendeur {v.id} ({v.display_name}) - Nb commandes: {vals['nb']}, Total: {vals['total']}, Total BP: {vals['total_bp']}, Pourcentage: {pourc}%")
             commission = vals['total'] * pourc
             logging.info(f"Calculating commission for vendeur {v.id}: {commission}")
+            vendeur_name = v.display_name.split('-')[-1].strip() if v.display_name else ''
+            logging.info(f"================== Vendeur name for vendeur {v.id}: {vendeur_name}")
             montant_net = commission - vals['total_bp']-500
             lines_vals.append((0, 0, {
                 'vendeur_id': v.id,
+                'vendeur_name': vendeur_name,
                 'nb_commandes': vals['nb'],
                 'total_commandes': vals['total'],
                 'total_bp': vals['total_bp'],
@@ -435,7 +438,7 @@ class PosPaiePeriode(models.Model):
 class PosPaiePeriodeLigne(models.Model):
     _name = 'pos.paie.periode.ligne'
     _description = 'Ligne de paie par vendeur (période)'
-    _order = 'total_commandes desc'
+    _order = 'vendeur_card asc'
 
     periode_id = fields.Many2one('pos.paie.periode', string='Période', required=True, ondelete='cascade', index=True)
     vendeur_id = fields.Many2one(
@@ -446,6 +449,8 @@ class PosPaiePeriodeLigne(models.Model):
         ondelete='cascade',  # If a vendor is deleted, remove the aggregated payroll line to avoid FK blocks
     )
     vendeur_card = fields.Char(related='vendeur_id.carte_numero', store=False)
+    #vendeur_name recupère la partie name du vendeur qui séparé par le - pour faciliter le tri
+    vendeur_name = fields.Char(string='Nom Vendeur',default='_compute_vendeur_name')
     nb_commandes = fields.Integer('Nb commandes', default=0)
     total_commandes = fields.Float('Total commandes', default=0.0)
     total_bp = fields.Float('Total BP', default=0.0)
@@ -456,3 +461,13 @@ class PosPaiePeriodeLigne(models.Model):
     _sql_constraints = [
         ('periode_vendeur_unique', 'unique(periode_id, vendeur_id)', 'Ce vendeur est déjà présent dans cette période.'),
     ]
+
+    @api.depends('vendeur_id')
+    def _compute_vendeur_name(self):
+        for record in self:
+            if record.vendeur_id and record.vendeur_id.display_name:
+                sname = record.vendeur_id.display_name.split('-')[-1].strip()
+                record.vendeur_name = sname
+                logging.info(f"================== Computed vendeur_name for vendeur_id {record.vendeur_id.id}: {sname}")
+            else:
+                record.vendeur_name = ''
