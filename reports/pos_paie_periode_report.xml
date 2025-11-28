@@ -37,7 +37,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <t t-foreach="sorted(periode.ligne_ids, key=lambda l: l.vendeur_card or '')" t-as="ligne">
+                        <t t-foreach="sorted(periode.ligne_ids, key=lambda l: int(l.vendeur_card[1:]) if l.vendeur_card and l.vendeur_card.startswith('S') else 0)" t-as="ligne">
                             <tr>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_card"/></td>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_id.display_name"/></td>
