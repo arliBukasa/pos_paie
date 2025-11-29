@@ -23,60 +23,122 @@ class PosPaieApi(http.Controller):
             except Exception:
                 return {'status': 'error', 'message': 'pourcentage invalide'}
 
-        Vendor = request.env['pos.caisse.vendeur'].sudo()
-        vendors = Vendor.search([], limit=limit)
         import logging
-        logging.info("=================== Vendeurs trouvés: %s", len(vendors))
         result = []
 
-        start_dt = end_dt = None
-        if date_debut:
+        # Si une période est spécifiée, on utilise la méthode basée sur les commandes groupées par carte
+        if date_debut and date_fin and with_totaux:
             start_dt = datetime.combine(fields.Date.from_string(date_debut), datetime.min.time())
-        if date_fin:
             end_dt = datetime.combine(fields.Date.from_string(date_fin), datetime.max.time())
-
-        Cmd = request.env['pos.caisse.commande'].sudo()
-        for v in vendors:
-            # Always compute BP-only aggregates for compatibility
-            domain_bp = [
-                ('client_card', '=', v.carte_numero), 
-                ('type_paiement', '=', 'bp'), 
+            
+            Cmd = request.env['pos.caisse.commande'].sudo()
+            Vendor = request.env['pos.caisse.vendeur'].sudo()
+            
+            # Récupérer toutes les commandes de la période
+            domain = [
                 ('state', '!=', 'annule'),
-                ('paiement_state', '=', 'non_payee')  # Ne prendre que les commandes non payées
+                ('paiement_state', '=', 'non_payee'),
+                ('date', '>=', fields.Datetime.to_string(start_dt)),
+                ('date', '<=', fields.Datetime.to_string(end_dt)),
             ]
-            if start_dt:
-                domain_bp.append(('date', '>=', fields.Datetime.to_string(start_dt)))
-            if end_dt:
-                domain_bp.append(('date', '<=', fields.Datetime.to_string(end_dt)))
-            cmds_bp = Cmd.search(domain_bp)
-            total_bp = sum(cmds_bp.mapped('total')) if cmds_bp else 0.0
-            entry = {
-                'id': v.id,
-                'name': v.display_name,
-                'carte_numero': v.carte_numero,
-                'total_bp': int(total_bp),
-                'nb_commandes': len(cmds_bp),
-            }
-            if with_totaux:
-                domain_all = [
+            commandes = Cmd.search(domain)
+            logging.info("=================== Commandes trouvées pour la période: %s", len(commandes))
+            
+            # Grouper par carte
+            cards = set(c.client_card for c in commandes if getattr(c, 'client_card', False))
+            logging.info("=================== Cartes uniques trouvées: %s", len(cards))
+            
+            # Récupérer les vendeurs correspondants
+            vendeurs = Vendor.search([('carte_numero', 'in', list(cards))]) if cards else Vendor.browse([])
+            vend_by_card = {v.carte_numero: v for v in vendeurs}
+            
+            # Agréger par carte
+            by_card = {}
+            for c in commandes:
+                card = getattr(c, 'client_card', False)
+                if not card:
+                    continue
+                agg = by_card.setdefault(card, {'nb': 0, 'total': 0.0, 'total_bp': 0.0})
+                agg['nb'] += 1
+                agg['total'] += c.total
+                if getattr(c, 'type_paiement', False) == 'bp':
+                    agg['total_bp'] += c.total
+            
+            # Créer les entrées
+            for card, vals in by_card.items():
+                v = vend_by_card.get(card)
+                if not v:
+                    continue
+                
+                commission = vals['total'] * (pourcentage or 0.0)
+                montant_net = commission - vals['total_bp'] - 500  # Déduction de 500 FC pour la carte
+                
+                result.append({
+                    'id': v.id,
+                    'name': v.display_name,
+                    'carte_numero': v.carte_numero,
+                    'total_bp': int(vals['total_bp']),
+                    'nb_commandes': vals['nb'],
+                    'total_commandes': int(vals['total']),
+                    'commission': int(commission),
+                    'montant_net': int(montant_net),
+                })
+            
+            logging.info("=================== Vendeurs avec des commandes: %s", len(result))
+        else:
+            # Méthode legacy : récupérer tous les vendeurs
+            Vendor = request.env['pos.caisse.vendeur'].sudo()
+            vendors = Vendor.search([], limit=limit)
+            logging.info("=================== Vendeurs trouvés: %s", len(vendors))
+
+            start_dt = end_dt = None
+            if date_debut:
+                start_dt = datetime.combine(fields.Date.from_string(date_debut), datetime.min.time())
+            if date_fin:
+                end_dt = datetime.combine(fields.Date.from_string(date_fin), datetime.max.time())
+
+            Cmd = request.env['pos.caisse.commande'].sudo()
+            for v in vendors:
+                # Always compute BP-only aggregates for compatibility
+                domain_bp = [
                     ('client_card', '=', v.carte_numero), 
+                    ('type_paiement', '=', 'bp'), 
                     ('state', '!=', 'annule'),
                     ('paiement_state', '=', 'non_payee')  # Ne prendre que les commandes non payées
                 ]
                 if start_dt:
-                    domain_all.append(('date', '>=', fields.Datetime.to_string(start_dt)))
+                    domain_bp.append(('date', '>=', fields.Datetime.to_string(start_dt)))
                 if end_dt:
-                    domain_all.append(('date', '<=', fields.Datetime.to_string(end_dt)))
-                cmds_all = Cmd.search(domain_all)
-                total_all = sum(cmds_all.mapped('total')) if cmds_all else 0.0
-                commission = total_all * (pourcentage or 0.0)
-                montant_net = commission - total_bp
-                entry.update({
-                    'total_commandes': int(total_all),
-                    'commission': int(commission),
-                    'montant_net': int(montant_net),
-                })
-            result.append(entry)
+                    domain_bp.append(('date', '<=', fields.Datetime.to_string(end_dt)))
+                cmds_bp = Cmd.search(domain_bp)
+                total_bp = sum(cmds_bp.mapped('total')) if cmds_bp else 0.0
+                entry = {
+                    'id': v.id,
+                    'name': v.display_name,
+                    'carte_numero': v.carte_numero,
+                    'total_bp': int(total_bp),
+                    'nb_commandes': len(cmds_bp),
+                }
+                if with_totaux:
+                    domain_all = [
+                        ('client_card', '=', v.carte_numero), 
+                        ('state', '!=', 'annule'),
+                        ('paiement_state', '=', 'non_payee')  # Ne prendre que les commandes non payées
+                    ]
+                    if start_dt:
+                        domain_all.append(('date', '>=', fields.Datetime.to_string(start_dt)))
+                    if end_dt:
+                        domain_all.append(('date', '<=', fields.Datetime.to_string(end_dt)))
+                    cmds_all = Cmd.search(domain_all)
+                    total_all = sum(cmds_all.mapped('total')) if cmds_all else 0.0
+                    commission = total_all * (pourcentage or 0.0)
+                    montant_net = commission - total_bp
+                    entry.update({
+                        'total_commandes': int(total_all),
+                        'commission': int(commission),
+                        'montant_net': int(montant_net),
+                    })
+                result.append(entry)
 
         # Odoo will wrap this into a JSON-RPC response automatically (type='json')
         return {
