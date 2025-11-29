@@ -60,12 +60,8 @@
                         </tr>
                     </thead>
                     <tbody>
-<<<<<<< HEAD
+                        <!-- trie par vendeur_name -->
                         <t t-foreach="sorted(periode.ligne_ids, key=lambda l: l.vendeur_name or '')" t-as="ligne">
-=======
-                    <!-- trie par vendeur_name -->
-                        <t t-foreach="sorted(periode.ligne_ids, key=lambda l: l.vendeur_name)" t-as="ligne">
->>>>>>> cf8e185bd67739a518b2571fe0286d488bac70cb
                             <tr>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_card"/></td>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_name"/></td>
