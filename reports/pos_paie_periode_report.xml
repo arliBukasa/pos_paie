@@ -14,8 +14,8 @@
             <t t-foreach="docs" t-as="periode">
                 <h2>Rapport de la periode de paie : <span t-esc="periode.name"/></h2>
                 <h3>Statistiques Globales</h3>
-                <table class="table table-bordered">
-                    <tr>
+                <table class="table table-bordered" style="width: 100%;">
+                    <tr >
                         <td><strong>Date de debut :</strong></td>
                         <td><span t-esc="periode.date_debut"/></td>
                     </tr>
@@ -24,7 +24,7 @@
                         <td><span t-esc="periode.date_fin"/></td>
                     </tr>
                 </table>
-                <table class="table table-bordered">
+                <table class="table table-bordered" style="width: 100%;">
                     <tr>
                         <td><strong>Nombre de vendeurs :</strong></td>
                         <td><span t-esc="len(periode.ligne_ids)"/></td>
@@ -60,10 +60,15 @@
                         </tr>
                     </thead>
                     <tbody>
+<<<<<<< HEAD
                         <t t-foreach="sorted(periode.ligne_ids, key=lambda l: l.vendeur_name or '')" t-as="ligne">
+=======
+                    <!-- trie par vendeur_name -->
+                        <t t-foreach="sorted(periode.ligne_ids, key=lambda l: l.vendeur_name)" t-as="ligne">
+>>>>>>> cf8e185bd67739a518b2571fe0286d488bac70cb
                             <tr>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_card"/></td>
-                                <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_id.display_name"/></td>
+                                <td style="border: 1px solid #000;"><span t-esc="ligne.vendeur_name"/></td>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.nb_commandes"/></td>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.total_commandes"/></td>
                                 <td style="border: 1px solid #000;"><span t-esc="ligne.total_bp"/></td>
